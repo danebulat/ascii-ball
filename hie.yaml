@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "app/Main.hs"
+      component: "ascii-ball:exe:ascii-ball"
+
+    - path: "src"
+      component: "lib:ascii-ball"

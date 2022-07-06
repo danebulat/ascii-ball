@@ -33,4 +33,5 @@ library
     other-modules:
     hs-source-dirs:   src
     build-depends:    base ^>=4.15.1.0
+                    , terminal-size
     default-language: Haskell2010
