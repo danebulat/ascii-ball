@@ -1,5 +1,7 @@
 module Animation where
 
+import Control.Concurrent ( threadDelay )
+import Control.Monad      ( forever ) 
 import qualified System.Console.Terminal.Size as TS
 
 verticalWallChar :: Char 
@@ -47,12 +49,29 @@ data AnimationState = AnimationState
   , ballPosition        :: Vector
   } deriving (Show)
 
+-- -------------------------------------------------------------------
 -- Game logic
-nextState :: AnimationState -> AnimationState
-nextState AnimationState { ballVelocity = v, ballPosition = pos } =
-  AnimationState { ballVelocity = v, ballPosition = pos +-> v }
 
+updateState :: Vector -> Vector -> AnimationState
+updateState = AnimationState 
+
+nextStateY :: AnimationState -> Vector -> AnimationState
+nextStateY AnimationState { ballVelocity = v, ballPosition = pos }
+           Vector { getX = w, getY = h } =
+  let Vector posX posY = pos
+      Vector velX velY = v
+  in
+    if posY >= w-2 then
+      updateState (Vector velX (negate velY)) (Vector posX (w-3))
+      
+    else if posY <= 1 then
+      updateState (Vector velX (negate velY)) (Vector posX 2)
+    else 
+      AnimationState { ballVelocity = v, ballPosition = pos +-> v }
+
+-- -------------------------------------------------------------------
 -- Render logic
+
 render :: Config -> AnimationState -> IO ()
 render Config {
          frameWidth   = width,
@@ -69,7 +88,7 @@ render Config {
       ballPos    = (x * width) + y    -- (row * row_width) + col
 
   -- Recursively construct string to draw to screen 
-  in putStr $ go 0 bufferSize ballPos
+  in putStr $ "\n" ++ go 0 bufferSize ballPos
   where
     go :: Int -> Int -> Int -> [Char] 
     go i target ballPos
@@ -93,9 +112,6 @@ render Config {
       | otherwise = ' ' : go (i+1) target ballPos
 
 -- -------------------------------------------------------------------
--- Animation logic
-
--- -------------------------------------------------------------------
 -- Initial config
 
 mkSize :: IO Vector
@@ -110,8 +126,8 @@ mkSize = do
 mkConfig :: Vector -> Config
 mkConfig size =
   Config
-  { ballInitialVelocity = Vector 1 0
-  , ballInitialPosition = Vector 3 3
+  { ballInitialVelocity = Vector 0 (-1)
+  , ballInitialPosition = Vector 3 10
   , frameWidth          = w
   , frameHeight         = h
   }
@@ -124,15 +140,40 @@ mkAnimationState c = AnimationState
   }
 
 -- -------------------------------------------------------------------
+-- Animation logic
+
+drawTimer :: Config -> AnimationState -> IO ()
+drawTimer c s = forever $ do
+  render c s
+  threadDelay 1000
+
+drawTimer' :: Config -> AnimationState -> IO ()
+drawTimer' c s = do
+  render c s
+  
+  --putStrLn $ "Pos: " ++ show (ballPosition s)
+  --putStrLn $ "Vel: " ++ show (ballVelocity s)
+  
+  threadDelay 700000
+  drawTimer' c (nextStateY s wh)
+  where w  = frameWidth c
+        h  = frameHeight c
+        wh = Vector w h
+
+-- -------------------------------------------------------------------
 -- CLI, Main function
 
 main :: IO ()
 main = do
   terminalSize <- mkSize
-
-  putStrLn $ "Terminal size: " ++ show terminalSize
   
   let config         = mkConfig terminalSize
       animationState = mkAnimationState config
 
-  render config animationState 
+  putStrLn $ "Terminal size: " ++ show terminalSize
+  putStrLn $ "Pos: " ++ show (ballPosition animationState)
+  
+  drawTimer' config animationState
+  
+  --render config animationState
+  putStrLn "\nDone"
