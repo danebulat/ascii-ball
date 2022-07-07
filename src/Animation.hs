@@ -5,13 +5,18 @@ import Control.Monad      ( forever )
 import System.IO          ( hSetBuffering, stdout, BufferMode(..) )
 
 import qualified System.Console.ANSI as T
-import System.Console.Terminal.Size (Window(height))
 
 verticalWallChar :: Char 
 verticalWallChar = '|'
 
 horizontalWallChar :: Char
 horizontalWallChar = '-'
+
+cornerChars :: (Char, Char)
+cornerChars = ('/','\\')
+
+ballChar :: Char
+ballChar = '0'
 
 -- -------------------------------------------------------------------
 -- Vector
@@ -68,6 +73,7 @@ nextStateX AnimationState
   | pX >= w-2 = mkState (Vector (negate vX) vY) (Vector (w-3) pY)
   | pX <= 1   = mkState (Vector (negate vX) vY) (Vector 2 pY)
   | otherwise = mkState (Vector vX vY) (Vector (pX+vX) pY)
+    -- TODO: Handle if next pos+vel outside bounds
 
 nextStateY :: AnimationState -> Vector -> AnimationState
 nextStateY AnimationState
@@ -79,6 +85,7 @@ nextStateY AnimationState
   | pY >= h-3 = mkState (Vector vX (negate vY)) (Vector pX (h-4))
   | pY <= 1   = mkState (Vector vX (negate vY)) (Vector pX 2)
   | otherwise = mkState (Vector vX vY) (Vector pX (pY+vY))
+    -- TODO: Handle if next pos+vel outside bounds
 
 -- -------------------------------------------------------------------
 -- Render logic
@@ -108,14 +115,14 @@ render Config
       | i > target = []
 
       -- draw ball
-      | i == ballPos = '0' : go (i+1) target ballPos
+      | i == ballPos = ballChar : go (i+1) target ballPos
 
       -- draw corners
       | i == 0 || i == target-1 =
-        '/' : go (i+1) target ballPos
+        fst cornerChars : go (i+1) target ballPos
       
       | i == (width-1) || i == (target-width) =
-        '\\' :  go (i+1) target ballPos
+        snd cornerChars :  go (i+1) target ballPos
 
       -- draw vertical walls 
       | i `rem` width == 0 && (i < (width * (height-1))) ||
