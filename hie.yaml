@@ -3,5 +3,14 @@ cradle:
     - path: "app/Main.hs"
       component: "ascii-ball:exe:ascii-ball"
 
+    - path: "src/Main.hs"
+      component: "ascii-ball:exe:ascii-ball"
+
+    - path: "app/Animation.hs"
+      component: "ascii-ball:exe:ascii-ball"
+
+    - path: "src/Animation.hs"
+      component: "ascii-ball:exe:ascii-ball"
+
     - path: "src"
       component: "lib:ascii-ball"

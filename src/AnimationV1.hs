@@ -1,11 +1,8 @@
-module Animation where
+module AnimationV1 where
 
 import Control.Concurrent ( threadDelay )
-import Control.Monad      ( forever )
-import System.IO          ( hSetBuffering, stdout, BufferMode(..) )
-
-import qualified System.Console.ANSI as T
-import System.Console.Terminal.Size (Window(height))
+import Control.Monad      ( forever ) 
+import qualified System.Console.Terminal.Size as TS
 
 verticalWallChar :: Char 
 verticalWallChar = '|'
@@ -76,8 +73,8 @@ nextStateY AnimationState
            Vector
              { getX = w
              , getY = h }
-  | pY >= h-3 = mkState (Vector vX (negate vY)) (Vector pX (h-4))
-  | pY <= 1   = mkState (Vector vX (negate vY)) (Vector pX 2)
+  | pY >= h-2 = mkState (Vector vX (negate vY)) (Vector pX (h-3))
+  | pY <= 2   = mkState (Vector vX (negate vY)) (Vector pX 3)
   | otherwise = mkState (Vector vX vY) (Vector pX (pY+vY))
 
 -- -------------------------------------------------------------------
@@ -92,14 +89,13 @@ render Config
 
   -- Calculate total characters to draw on screen
   -- https://stackoverflow.com/questions/1730961/convert-a-2d-array-index-into-a-1d-index
-  let height'    = height - 1
-      bufferSize = width * height'
+  let bufferSize = width * height
       Vector x y = pos
       ballPos    = (y * width) + x    -- OR (row * row_width) + col for flipped axes
 
   -- Recursively construct string to draw to screen
   -- Remove 'init' to align correctly in GHCI
-  in putStr $ go 0 bufferSize ballPos
+  in putStr $ init ("\n" ++ go 0 bufferSize ballPos)
   where
     go :: Int -> Int -> Int -> [Char] 
     go i target ballPos
@@ -111,21 +107,21 @@ render Config
       | i == ballPos = '0' : go (i+1) target ballPos
 
       -- draw corners
-      | i == 0 || i == target-1 =
+      | i == width || i == target-1 =
         '/' : go (i+1) target ballPos
       
-      | i == (width-1) || i == (target-width) =
+      | i == (width*2-1) || i == (target-width) =
         '\\' :  go (i+1) target ballPos
 
       -- draw vertical walls 
-      | i `rem` width == 0 && (i < (width * (height-1))) ||
+      | i `rem` width == 0 && (i < (width * height)) ||
         i `rem` width == (width-1) =
           verticalWallChar : go (i+1) target ballPos
 
       -- draw horizontal wall
-      | i `elem` [1..width-1] ++
-                 [(width*(height-1))-width..(width*(height-1))]
-        && (i < (width*(height-1))) =
+      | i `elem` [width..width*2] ++
+                 [(width*height)-width..(width*height)]
+        && (i < (width*height)) =
           horizontalWallChar : go (i+1) target ballPos
 
       -- default draw empty space 
@@ -136,9 +132,9 @@ render Config
 
 mkSize :: IO Vector
 mkSize = do
-   size <- T.getTerminalSize
+   size <- TS.size
    case size of
-     Just (x, y) ->
+     Just (TS.Window x y) ->
        return $ Vector y x
      _ ->
        error "couldn't get terminal size"
@@ -146,7 +142,7 @@ mkSize = do
 mkConfig :: Vector -> Config
 mkConfig size =
   Config
-  { ballInitialVelocity = Vector (-1) (-1)
+  { ballInitialVelocity = Vector 1 1
   , ballInitialPosition = Vector 10 3
   , frameWidth          = w
   , frameHeight         = h
@@ -162,35 +158,24 @@ mkAnimationState c = AnimationState
 -- -------------------------------------------------------------------
 -- Draw logic
 
-drawTimer :: Config -> AnimationState -> Int -> IO ()
-drawTimer c s n = do
+drawTimer :: Config -> AnimationState -> IO ()
+drawTimer c s = do
   render c s
-  go c s n
-  where
-    go c s n 
-      | n == 0 = do
-          return ()
-
-      | otherwise = do
-          T.setCursorPosition 0 0
-          T.cursorUp h
-          render c s
   
-          -- putStrLn $ "Pos: " ++ show (ballPosition s)
-          -- putStrLn $ "Vel: " ++ show (ballVelocity s)
+  --putStrLn $ "Pos: " ++ show (ballPosition s)
+  --putStrLn $ "Vel: " ++ show (ballVelocity s)
   
-          threadDelay 100000
-          go c (nextStateY (nextStateX s wh) wh) (n-1)
-    w  = frameWidth c
-    h  = frameHeight c
-    wh = Vector w h
+  threadDelay 250000
+  drawTimer c (nextStateY (nextStateX s wh) wh)
+  where w  = frameWidth c
+        h  = frameHeight c
+        wh = Vector w h
 
 -- -------------------------------------------------------------------
 -- CLI, Main function
 
 run :: IO ()
 run = do
-  hSetBuffering stdout NoBuffering
   terminalSize <- mkSize
   
   let config         = mkConfig terminalSize
@@ -199,10 +184,7 @@ run = do
   putStrLn $ "Terminal size: " ++ show terminalSize
   putStrLn $ "Pos: " ++ show (ballPosition animationState)
   putStrLn $ "Vel: " ++ show (ballVelocity animationState)
-  putStrLn "Start:"
-
-  T.hideCursor
-  drawTimer config animationState 500  -- pass how many frames to render
-  T.showCursor
+  
+  drawTimer config animationState
   
   putStrLn "\nDone"

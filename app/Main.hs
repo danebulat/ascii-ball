@@ -1,4 +1,6 @@
 module Main where
 
+import Animation ( run )
+
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = run
