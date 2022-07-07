@@ -52,55 +52,46 @@ data AnimationState = AnimationState
 -- -------------------------------------------------------------------
 -- Game logic
 
-updateState :: Vector -> Vector -> AnimationState
-updateState = AnimationState 
-
-nextStateY :: AnimationState -> Vector -> AnimationState
-nextStateY AnimationState { ballVelocity = v, ballPosition = pos }
-           Vector { getX = w, getY = h } =
-  let Vector posX posY = pos
-      Vector velX velY = v
-  in
-    if posY >= w-2 then
-      updateState (Vector velX (negate velY)) (Vector posX (w-3))
-      
-    else if posY <= 1 then
-      updateState (Vector velX (negate velY)) (Vector posX 2)
-    else
-      let xVel = Vector 0 (getY v) in
-      AnimationState { ballVelocity = v, ballPosition = pos +-> xVel }
+mkState :: Vector -> Vector -> AnimationState
+mkState = AnimationState 
 
 nextStateX :: AnimationState -> Vector -> AnimationState
-nextStateX AnimationState { ballVelocity = v, ballPosition = pos }
-           Vector { getX = w, getY = h } =
-  let Vector posX posY = pos
-      Vector velX velY = v
-   in
-    if posX >= h-2 then
-      updateState (Vector (negate velX) velY) (Vector (h-3) posY)
-    else if posX <= 2 then
-      updateState (Vector (negate velX) velY) (Vector 3 posY)
-    else
-      let yVel = Vector (getX v) 0 in
-      AnimationState { ballVelocity = v, ballPosition = pos +-> yVel }
+nextStateX AnimationState
+             { ballVelocity = Vector vX vY
+             , ballPosition = Vector pX pY }
+           Vector
+             { getX = w
+             , getY = y }
+  | pX >= w-2 = mkState (Vector (negate vX) vY) (Vector (w-3) pY)
+  | pX <= 1   = mkState (Vector (negate vX) vY) (Vector 2 pY)
+  | otherwise = mkState (Vector vX vY) (Vector (pX+vX) pY)
+
+nextStateY :: AnimationState -> Vector -> AnimationState
+nextStateY AnimationState
+             { ballVelocity = Vector vX vY
+             , ballPosition = Vector pX pY }
+           Vector
+             { getX = w
+             , getY = h }
+  | pY >= h-2 = mkState (Vector vX (negate vY)) (Vector pX (h-3))
+  | pY <= 2   = mkState (Vector vX (negate vY)) (Vector pX 3)
+  | otherwise = mkState (Vector vX vY) (Vector pX (pY+vY))
 
 -- -------------------------------------------------------------------
 -- Render logic
 
 render :: Config -> AnimationState -> IO ()
-render Config {
-         frameWidth   = width,
-         frameHeight  = height
-       }
-       AnimationState {
-         ballPosition = pos
-       } =
+render Config
+         { frameWidth   = width
+         , frameHeight  = height }
+       AnimationState
+         { ballPosition = pos } =
 
   -- Calculate total characters to draw on screen
   -- https://stackoverflow.com/questions/1730961/convert-a-2d-array-index-into-a-1d-index
   let bufferSize = width * height
       Vector x y = pos
-      ballPos    = (x * width) + y    -- (row * row_width) + col
+      ballPos    = (y * width) + x    -- OR (row * row_width) + col for flipped axes
 
   -- Recursively construct string to draw to screen 
   in putStr $ "\n" ++ go 0 bufferSize ballPos 
@@ -112,11 +103,17 @@ render Config {
       | i > target = []
 
       -- draw ball
-      | i == ballPos = 'o' : go (i+1) target ballPos 
+      | i == ballPos = 'o' : go (i+1) target ballPos
+
+      -- draw corners
+      | i == width || i == target-1 =
+        '/' : go (i+1) target ballPos
+      
+      | i == (width*2-1) || i == (target-width) =
+        '\\' :  go (i+1) target ballPos
 
       -- draw vertical walls 
-      | i == 0 ||
-        i `rem` width == 0 && (i < (width * height)) ||
+      | i `rem` width == 0 && (i < (width * height)) ||
         i `rem` width == (width-1) =
           verticalWallChar : go (i+1) target ballPos
 
@@ -137,19 +134,19 @@ mkSize = do
    size <- TS.size
    case size of
      Just (TS.Window x y) ->
-       return $ Vector x y
+       return $ Vector y x
      _ ->
        error "couldn't get terminal size"
 
 mkConfig :: Vector -> Config
 mkConfig size =
   Config
-  { ballInitialVelocity = Vector 1 (-1)
-  , ballInitialPosition = Vector 3 10
+  { ballInitialVelocity = Vector 1 1
+  , ballInitialPosition = Vector 10 3
   , frameWidth          = w
   , frameHeight         = h
   }
-  where (Vector h w) = size
+  where (Vector w h) = size
 
 mkAnimationState :: Config -> AnimationState
 mkAnimationState c = AnimationState
@@ -161,19 +158,14 @@ mkAnimationState c = AnimationState
 -- Animation logic
 
 drawTimer :: Config -> AnimationState -> IO ()
-drawTimer c s = forever $ do
-  render c s
-  threadDelay 1000
-
-drawTimer' :: Config -> AnimationState -> IO ()
-drawTimer' c s = do
+drawTimer c s = do
   render c s
   
   --putStrLn $ "Pos: " ++ show (ballPosition s)
   --putStrLn $ "Vel: " ++ show (ballVelocity s)
   
   threadDelay 500000
-  drawTimer' c (nextStateX (nextStateY s wh) wh) 
+  drawTimer c (nextStateY (nextStateX s wh) wh)
   where w  = frameWidth c
         h  = frameHeight c
         wh = Vector w h
@@ -190,8 +182,8 @@ main = do
 
   putStrLn $ "Terminal size: " ++ show terminalSize
   putStrLn $ "Pos: " ++ show (ballPosition animationState)
+  putStrLn $ "Vel: " ++ show (ballVelocity animationState)
   
-  drawTimer' config animationState
+  drawTimer config animationState
   
-  --render config animationState
   putStrLn "\nDone"
