@@ -66,8 +66,23 @@ nextStateY AnimationState { ballVelocity = v, ballPosition = pos }
       
     else if posY <= 1 then
       updateState (Vector velX (negate velY)) (Vector posX 2)
-    else 
-      AnimationState { ballVelocity = v, ballPosition = pos +-> v }
+    else
+      let xVel = Vector 0 (getY v) in
+      AnimationState { ballVelocity = v, ballPosition = pos +-> xVel }
+
+nextStateX :: AnimationState -> Vector -> AnimationState
+nextStateX AnimationState { ballVelocity = v, ballPosition = pos }
+           Vector { getX = w, getY = h } =
+  let Vector posX posY = pos
+      Vector velX velY = v
+   in
+    if posX >= h-2 then
+      updateState (Vector (negate velX) velY) (Vector (h-3) posY)
+    else if posX <= 2 then
+      updateState (Vector (negate velX) velY) (Vector 3 posY)
+    else
+      let yVel = Vector (getX v) 0 in
+      AnimationState { ballVelocity = v, ballPosition = pos +-> yVel }
 
 -- -------------------------------------------------------------------
 -- Render logic
@@ -88,7 +103,7 @@ render Config {
       ballPos    = (x * width) + y    -- (row * row_width) + col
 
   -- Recursively construct string to draw to screen 
-  in putStr $ "\n" ++ go 0 bufferSize ballPos
+  in putStr $ "\n" ++ go 0 bufferSize ballPos 
   where
     go :: Int -> Int -> Int -> [Char] 
     go i target ballPos
@@ -101,12 +116,15 @@ render Config {
 
       -- draw vertical walls 
       | i == 0 ||
-        i `rem` width == 0 ||
+        i `rem` width == 0 && (i < (width * height)) ||
         i `rem` width == (width-1) =
           verticalWallChar : go (i+1) target ballPos
 
       -- draw horizontal wall
-      -- TODO
+      | i `elem` [width..width*2] ++
+                 [(width*height)-width..(width*height)]
+        && (i < (width*height)) =
+          horizontalWallChar : go (i+1) target ballPos
 
       -- default draw empty space 
       | otherwise = ' ' : go (i+1) target ballPos
@@ -126,7 +144,7 @@ mkSize = do
 mkConfig :: Vector -> Config
 mkConfig size =
   Config
-  { ballInitialVelocity = Vector 0 (-1)
+  { ballInitialVelocity = Vector 1 (-1)
   , ballInitialPosition = Vector 3 10
   , frameWidth          = w
   , frameHeight         = h
@@ -154,8 +172,8 @@ drawTimer' c s = do
   --putStrLn $ "Pos: " ++ show (ballPosition s)
   --putStrLn $ "Vel: " ++ show (ballVelocity s)
   
-  threadDelay 700000
-  drawTimer' c (nextStateY s wh)
+  threadDelay 500000
+  drawTimer' c (nextStateX (nextStateY s wh) wh) 
   where w  = frameWidth c
         h  = frameHeight c
         wh = Vector w h
