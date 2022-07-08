@@ -6,7 +6,7 @@ import System.IO          ( hSetBuffering, stdout, BufferMode(..) )
 
 import qualified System.Console.ANSI as T
 
-verticalWallChar :: Char 
+verticalWallChar :: Char
 verticalWallChar = '|'
 
 horizontalWallChar :: Char
@@ -29,10 +29,10 @@ addVector :: Vector -> Vector -> Vector
 addVector (Vector x1 y1) (Vector x2 y2) =
    Vector (x1 + x2) (y1 + y2)
 
-(+->) :: Vector -> Vector -> Vector 
+(+->) :: Vector -> Vector -> Vector
 (+->) = addVector
 
-test1 :: Bool 
+test1 :: Bool
 test1 = let v1 = Vector 1 2
             v2 = Vector 3 4
          in v1 `addVector` v2 == Vector 4 6
@@ -61,7 +61,7 @@ data AnimationState = AnimationState
 -- Animation logic
 
 mkState :: Vector -> Vector -> AnimationState
-mkState = AnimationState 
+mkState = AnimationState
 
 nextStateX :: AnimationState -> Vector -> AnimationState
 nextStateX AnimationState
@@ -70,10 +70,13 @@ nextStateX AnimationState
            Vector
              { getX = w
              , getY = y }
-  | pX >= w-2 = mkState (Vector (negate vX) vY) (Vector (w-3) pY)
-  | pX <= 1   = mkState (Vector (negate vX) vY) (Vector 2 pY)
+  | pX+vX >= w-2 = mkState (Vector (negate vX) vY)
+                   (Vector (pX-vX-((pX+vX)-(w-2))) pY)
+            -- bounce velocity ^
+  | pX+vX <= 1   = mkState (Vector (negate vX) vY)
+                   (Vector (pX+vX+abs(1-(pX+vX))) pY)
+            -- bounce velocity ^
   | otherwise = mkState (Vector vX vY) (Vector (pX+vX) pY)
-    -- TODO: Handle if next pos+vel outside bounds
 
 nextStateY :: AnimationState -> Vector -> AnimationState
 nextStateY AnimationState
@@ -82,10 +85,13 @@ nextStateY AnimationState
            Vector
              { getX = w
              , getY = h }
-  | pY >= h-3 = mkState (Vector vX (negate vY)) (Vector pX (h-4))
-  | pY <= 1   = mkState (Vector vX (negate vY)) (Vector pX 2)
+  | pY+vY >= h-2 = mkState (Vector vX (negate vY))
+                   (Vector pX (pY-vY-((pY+vY)-(h-2))))
+               -- bounce velocity ^
+  | pY+vY <= 1  = mkState (Vector vX (negate vY))
+                   (Vector pX (pY+vY+abs(1-(pY+vY))))
+               -- bounce velocity ^
   | otherwise = mkState (Vector vX vY) (Vector pX (pY+vY))
-    -- TODO: Handle if next pos+vel outside bounds
 
 -- -------------------------------------------------------------------
 -- Render logic
@@ -108,7 +114,7 @@ render Config
   -- Remove 'init' to align correctly in GHCI
   in putStr $ go 0 bufferSize ballPos
   where
-    go :: Int -> Int -> Int -> [Char] 
+    go :: Int -> Int -> Int -> [Char]
     go i target ballPos
 
       -- end of buffer
@@ -120,7 +126,7 @@ render Config
       -- draw corners
       | i == 0 || i == target-1 =
         fst cornerChars : go (i+1) target ballPos
-      
+
       | i == (width-1) || i == (target-width) =
         snd cornerChars :  go (i+1) target ballPos
 
@@ -153,7 +159,7 @@ mkSize = do
 mkConfig :: Vector -> Config
 mkConfig size =
   Config
-  { ballInitialVelocity = Vector (-1) (-1)
+  { ballInitialVelocity = Vector (2) (2)
   , ballInitialPosition = Vector 10 3
   , frameWidth          = w
   , frameHeight         = h
@@ -174,7 +180,7 @@ drawTimer c s n = do
   render c s
   go c s n
   where
-    go c s n 
+    go c s n
       | n == 0 = do
           return ()
 
@@ -182,10 +188,10 @@ drawTimer c s n = do
           T.setCursorPosition 0 0
           T.cursorUp h
           render c s
-  
+
           -- putStrLn $ "Pos: " ++ show (ballPosition s)
           -- putStrLn $ "Vel: " ++ show (ballVelocity s)
-  
+
           threadDelay 100000
           go c (nextStateY (nextStateX s wh) wh) (n-1)
     w  = frameWidth c
@@ -199,7 +205,7 @@ run :: IO ()
 run = do
   hSetBuffering stdout NoBuffering
   terminalSize <- mkSize
-  
+
   let config         = mkConfig terminalSize
       animationState = mkAnimationState config
 
@@ -211,5 +217,5 @@ run = do
   T.hideCursor
   drawTimer config animationState 500  -- pass how many frames to render
   T.showCursor
-  
+
   putStrLn "\nDone"
