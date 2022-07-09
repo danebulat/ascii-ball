@@ -70,12 +70,14 @@ nextStateX AnimationState
            Vector
              { getX = w
              , getY = y }
-  | pX+vX >= w-2 = mkState (Vector (negate vX) vY)
-                   (Vector (pX-vX-((pX+vX)-(w-2))) pY)
-            -- bounce velocity ^
-  | pX+vX <= 1   = mkState (Vector (negate vX) vY)
-                   (Vector (pX+vX+abs(1-(pX+vX))) pY)
-            -- bounce velocity ^
+  | pX+vX > w-2 =
+    let newX = calcOvershoot (w-2) pX vX
+    in mkState (Vector (negate vX) vY) (Vector newX pY)
+    
+  | pX+vX < 1 =
+    let newX = calcOvershoot' 1 pX vX
+    in mkState (Vector (negate vX) vY) (Vector newX pY)
+    
   | otherwise = mkState (Vector vX vY) (Vector (pX+vX) pY)
 
 nextStateY :: AnimationState -> Vector -> AnimationState
@@ -85,13 +87,29 @@ nextStateY AnimationState
            Vector
              { getX = w
              , getY = h }
-  | pY+vY >= h-2 = mkState (Vector vX (negate vY))
-                   (Vector pX (pY-vY-((pY+vY)-(h-2))))
-               -- bounce velocity ^
-  | pY+vY <= 1  = mkState (Vector vX (negate vY))
-                   (Vector pX (pY+vY+abs(1-(pY+vY))))
-               -- bounce velocity ^
-  | otherwise = mkState (Vector vX vY) (Vector pX (pY+vY))
+  | pY+vY > h-3 =
+    let  newY = calcOvershoot (h-3) pY vY
+    in mkState (Vector vX (negate vY)) (Vector pX newY)
+    
+  | pY+vY < 1 =
+    let newY = calcOvershoot' 1 pY vY
+    in mkState (Vector vX (negate vY)) (Vector pX newY)
+    
+  | otherwise= mkState (Vector vX vY) (Vector pX (pY+vY))
+
+calcOvershoot :: Int -> Int -> Int -> Int
+calcOvershoot bound p v =
+  let ov = abs((p + v) - bound) -- overshoot in next frame
+      tw = bound - p            -- space to wall
+      mv = abs (ov - tw)        -- amount to move in opposite direction from wall
+  in bound - mv
+
+calcOvershoot' :: Int -> Int -> Int -> Int
+calcOvershoot' bound p v =
+  let ov = abs((p + v) + bound) -- overshoot in next frame
+      tw = bound + p            -- space to wall
+      mv = abs (ov - tw)        -- amount to move in opposite direction from wall
+  in bound + mv
 
 -- -------------------------------------------------------------------
 -- Render logic
@@ -197,7 +215,7 @@ drawTimer c s n = do
           -- putStrLn $ "Pos: " ++ show (ballPosition s)
           -- putStrLn $ "Vel: " ++ show (ballVelocity s)
 
-          threadDelay 100000
+          threadDelay 150000
           go c (nextStateY (nextStateX s wh) wh) (n-1)
     w  = frameWidth c
     h  = frameHeight c
