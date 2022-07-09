@@ -1,8 +1,8 @@
 module Animation where
 
 import Control.Concurrent ( threadDelay )
-import Control.Monad      ( forever )
 import System.IO          ( hSetBuffering, stdout, BufferMode(..) )
+import System.Environment ( getArgs )
 
 import qualified System.Console.ANSI as T
 
@@ -156,15 +156,20 @@ mkSize = do
      _ ->
        error "couldn't get terminal size"
 
-mkConfig :: Vector -> Config
-mkConfig size =
+mkConfig :: Vector -> [String] -> Config
+mkConfig size args =
   Config
-  { ballInitialVelocity = Vector (2) (2)
-  , ballInitialPosition = Vector 10 3
+  { ballInitialVelocity = getVelocity args
+  , ballInitialPosition = getPosition args
   , frameWidth          = w
   , frameHeight         = h
   }
   where (Vector w h) = size
+        getVelocity [_, _, vX, vY] = Vector (read vX) (read vY)
+        getVelocity _ = Vector 1 1   -- default velocity 
+
+        getPosition [pX, pY, _, _] = Vector (read pX) (read pY)
+        getPosition _ = Vector 10 3  -- default position 
 
 mkAnimationState :: Config -> AnimationState
 mkAnimationState c = AnimationState
@@ -206,7 +211,10 @@ run = do
   hSetBuffering stdout NoBuffering
   terminalSize <- mkSize
 
-  let config         = mkConfig terminalSize
+  -- args = [posX posY velX velY]
+  args <- getArgs 
+
+  let config         = mkConfig terminalSize args
       animationState = mkAnimationState config
 
   putStrLn $ "Terminal size: " ++ show terminalSize
