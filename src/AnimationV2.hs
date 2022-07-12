@@ -1,11 +1,3 @@
-{-
-This version reads data from an INI (initialisation)
-file to set a default position and velocity for the
-ball.
-
-Edit the INI file to set the program's starting values.
--}
-
 module Animation where
 
 import Control.Concurrent ( threadDelay )

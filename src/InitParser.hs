@@ -28,10 +28,47 @@ data Section =
   Section Header AssignmentsMap
   deriving (Eq, Show)
 
--- Config
-data Config =
-  Config (M.Map Header AssignmentsMap)
+-- IniData 
+data IniData =
+  IniData { getIniMap :: (M.Map Header AssignmentsMap) }
   deriving (Eq, Show)
+
+-- -------------------------------------------------------------------
+-- IniData functions
+
+type Key = String
+
+-- | TODO: Make data type to return other than Int 
+getIniData :: Header -> Key -> IniData -> Int 
+getIniData h k ini =
+  let m = getIniMap ini
+      (Just m') = M.lookup h m
+      (Just v) = M.lookup k m'
+   in read v
+
+testGettingData =
+  let Success iniData = parseByteString parseIni mempty sectionsEx
+      posX = getIniData (Header "Position") "posX" iniData
+      posY = getIniData (Header "Position") "posY" iniData
+      velX = getIniData (Header "Velocity") "velX" iniData
+      velY = getIniData (Header "Velocity") "velY" iniData
+   in (posX, posY, velX, velY) == (4, 3, 1, 1)
+
+iniFile :: FilePath
+iniFile = "data/start.ini"
+
+loadIniFile :: IO B.ByteString
+loadIniFile = B.readFile iniFile 
+
+testFileData :: IO Bool 
+testFileData = do
+  bs <- loadIniFile
+  let Success iniData = parseByteString parseIni mempty bs
+      posX = getIniData (Header "Position") "posX" iniData
+      posY = getIniData (Header "Position") "posY" iniData
+      velX = getIniData (Header "Velocity") "velX" iniData
+      velY = getIniData (Header "Velocity") "velY" iniData    
+  return ((posX, posY, velX, velY) == (4, 3, 1, 1))
 
 -- -------------------------------------------------------------------
 -- Data examples
@@ -113,11 +150,11 @@ parseSection = do
   skipWS
   return $ Section h (M.fromList a)
 
-parseConfig :: Parser Config
-parseConfig = do
+parseIni :: Parser IniData
+parseIni = do
   sections <- many (try parseSection)
   let c = foldr (\(Section h xs) acc -> M.insert h xs acc) M.empty sections
-  return $ Config c
+  return $ IniData c
 
 -- -------------------------------------------------------------------
 -- Tests
