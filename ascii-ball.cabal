@@ -24,8 +24,12 @@ executable ascii-ball
     other-modules:    Animation
     other-extensions:
     build-depends:    base ^>=4.15.1.0
-                    , terminal-size
                     , ansi-terminal
+                    , bytestring
+                    , containers
+                    , raw-strings-qq
+                    , trifecta
+                    , terminal-size
     hs-source-dirs:   app, src
     default-language: Haskell2010
 
@@ -36,6 +40,10 @@ library
     other-modules:
     hs-source-dirs:   src
     build-depends:    base ^>=4.15.1.0
-                    , terminal-size
                     , ansi-terminal
+                    , bytestring
+                    , containers
+                    , raw-strings-qq
+                    , terminal-size
+                    , trifecta
     default-language: Haskell2010
