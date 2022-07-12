@@ -36,39 +36,27 @@ data IniData =
 -- -------------------------------------------------------------------
 -- IniData functions
 
-type Key = String
-
--- | TODO: Make data type to return other than Int 
-getIniData :: Header -> Key -> IniData -> Int 
-getIniData h k ini =
-  let m = getIniMap ini
-      (Just m') = M.lookup h m
-      (Just v) = M.lookup k m'
-   in read v
-
-testGettingData =
-  let Success iniData = parseByteString parseIni mempty sectionsEx
-      posX = getIniData (Header "Position") "posX" iniData
-      posY = getIniData (Header "Position") "posY" iniData
-      velX = getIniData (Header "Velocity") "velX" iniData
-      velY = getIniData (Header "Velocity") "velY" iniData
-   in (posX, posY, velX, velY) == (4, 3, 1, 1)
-
 iniFile :: FilePath
 iniFile = "data/start.ini"
 
 loadIniFile :: IO B.ByteString
-loadIniFile = B.readFile iniFile 
+loadIniFile = B.readFile iniFile
 
-testFileData :: IO Bool 
-testFileData = do
+type Key = String
+
+-- | TODO: Make data type to return other than Int 
+mkIni :: IO IniData
+mkIni = do
   bs <- loadIniFile
   let Success iniData = parseByteString parseIni mempty bs
-      posX = getIniData (Header "Position") "posX" iniData
-      posY = getIniData (Header "Position") "posY" iniData
-      velX = getIniData (Header "Velocity") "velX" iniData
-      velY = getIniData (Header "Velocity") "velY" iniData    
-  return ((posX, posY, velX, velY) == (4, 3, 1, 1))
+  return iniData
+
+getIniData :: String -> Key -> IniData -> Int 
+getIniData h k ini =
+  let m = getIniMap ini
+      (Just m') = M.lookup (Header h) m
+      (Just v) = M.lookup k m'
+   in read v
 
 -- -------------------------------------------------------------------
 -- Data examples
@@ -175,3 +163,20 @@ commentTest =
                   (commentEx +++ "\n" +++ headerEx)
   in h == Header "Startup"
 
+testGettingData =
+  let Success iniData = parseByteString parseIni mempty sectionsEx
+      posX = getIniData "Position" "posX" iniData
+      posY = getIniData "Position" "posY" iniData
+      velX = getIniData "Velocity" "velX" iniData
+      velY = getIniData "Velocity" "velY" iniData
+   in (posX, posY, velX, velY) == (4, 3, 1, 1)
+
+testFileData :: IO Bool 
+testFileData = do
+  bs <- loadIniFile
+  let Success iniData = parseByteString parseIni mempty bs
+      posX = getIniData "Position" "posX" iniData
+      posY = getIniData "Position" "posY" iniData
+      velX = getIniData "Velocity" "velX" iniData
+      velY = getIniData "Velocity" "velY" iniData    
+  return ((posX, posY, velX, velY) == (4, 3, 1, 1))

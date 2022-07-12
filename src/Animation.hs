@@ -11,7 +11,7 @@ module Animation where
 import Control.Concurrent ( threadDelay )
 import System.IO          ( hSetBuffering, stdout, BufferMode(..) )
 import System.Environment ( getArgs )
-
+import InitParser         ( IniData, getIniData, mkIni )
 import qualified System.Console.ANSI as T
 
 verticalWallChar :: Char
@@ -182,20 +182,19 @@ mkSize = do
      _ ->
        error "couldn't get terminal size"
 
-mkConfig :: Vector -> [String] -> Config
-mkConfig size args =
+mkConfig :: Vector -> IniData -> Config
+mkConfig size ini =
   Config
-  { ballInitialVelocity = getVelocity args
-  , ballInitialPosition = getPosition args
+  { ballInitialVelocity = Vector velX velY
+  , ballInitialPosition = Vector posX posY
   , frameWidth          = w
   , frameHeight         = h
   }
   where (Vector w h) = size
-        getVelocity [_, _, vX, vY] = Vector (read vX) (read vY)
-        getVelocity _ = Vector 1 1   -- default velocity 
-
-        getPosition [pX, pY, _, _] = Vector (read pX) (read pY)
-        getPosition _ = Vector 10 3  -- default position 
+        posX = getIniData "Position" "posX" ini
+        posY = getIniData "Position" "posY" ini
+        velX = getIniData "Velocity" "velX" ini
+        velY = getIniData "Velocity" "velY" ini
 
 mkAnimationState :: Config -> AnimationState
 mkAnimationState c = AnimationState
@@ -235,12 +234,11 @@ drawTimer c s n = do
 run :: IO ()
 run = do
   hSetBuffering stdout NoBuffering
+
   terminalSize <- mkSize
-
-  -- args = [posX posY velX velY]
-  args <- getArgs 
-
-  let config         = mkConfig terminalSize args
+  iniData <- mkIni
+  
+  let config         = mkConfig terminalSize iniData
       animationState = mkAnimationState config
 
   putStrLn $ "Terminal size: " ++ show terminalSize
