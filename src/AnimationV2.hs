@@ -1,4 +1,19 @@
-module Animation where
+{-
+This version reads command-line arguments to set
+starting values.
+
+      Syntax:
+      stack run posX posY velX velY 
+
+      Examples:
+      stack run 3 4 1 1
+
+      With GHCI:
+      ghci> :set args 3 4 1 1
+      ghci> run
+-}
+
+module AnimationV2 where
 
 import Control.Concurrent ( threadDelay )
 import System.IO          ( hSetBuffering, stdout, BufferMode(..) )

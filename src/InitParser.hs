@@ -44,13 +44,13 @@ loadIniFile = B.readFile iniFile
 
 type Key = String
 
--- | TODO: Make data type to return other than Int 
 mkIni :: IO IniData
 mkIni = do
   bs <- loadIniFile
   let Success iniData = parseByteString parseIni mempty bs
   return iniData
 
+-- | TODO: Make data type to return other than Int 
 getIniData :: String -> Key -> IniData -> Int 
 getIniData h k ini =
   let m = getIniMap ini
